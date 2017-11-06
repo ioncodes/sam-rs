@@ -4,7 +4,6 @@
 extern crate syntax;
 extern crate rustc;
 extern crate rustc_plugin;
-extern crate keystone;
 
 use syntax::parse::token;
 use syntax::tokenstream::TokenTree;
@@ -13,8 +12,9 @@ use syntax::ext::base::{ExtCtxt, MacResult, DummyResult, MacEager};
 use syntax::ext::build::AstBuilder; // A trait for expr_usize.
 use syntax::ext::quote::rt::Span;
 use rustc_plugin::Registry;
-use keystone::*;
-
+use std::process::Command;
+use std::fs::File;
+use std::io::prelude::*;
 
 fn expand_sam(cx: &mut ExtCtxt, sp: Span, args: &[TokenTree]) -> Box<MacResult + 'static> {
     if args.len() != 1 {
@@ -36,13 +36,26 @@ fn expand_sam(cx: &mut ExtCtxt, sp: Span, args: &[TokenTree]) -> Box<MacResult +
         }
     };
 
-    let engine = Keystone::new(Arch::X86, MODE_32).expect("Could not initialize Keystone engine");
-    engine.option(OptionType::SYNTAX, OPT_SYNTAX_NASM).expect(
-        "Could not set option to nasm syntax",
-    );
-    let result = engine.asm(text, 0).expect("Could not assemble").bytes;
+    let output = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(&["/C", "ks.exe", &*text])
+            .output()
+            .expect("failed to execute process")
+    } else {
+        Command::new("sh")
+            .arg("-c")
+            .arg("ks")
+            .arg(&*text)
+            .output()
+            .expect("failed to execute process")
+    };
 
-    MacEager::expr(quote_expr!(cx, vec![result]))
+    let mut file = File::create("foo.txt").unwrap();
+    file.write_all(&output.stdout);
+
+    let result = &String::from_utf8(output.stdout).unwrap();
+
+    MacEager::expr(cx.expr_str(sp, Symbol::intern(result)))
 }
 
 #[plugin_registrar]

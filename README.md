@@ -1,6 +1,9 @@
 # sam-rs
 Rust compiler plugin for compile time x64 assembling.
 
+## DEPRECATED
+This release is really buggy and it isn't possible to realize it like this. This project is now deprecated, for a working and stable version go to the new version of sam: https://github.com/ioncodes/sam
+
 ## Usage
 ```rust
 #![feature(plugin)]
